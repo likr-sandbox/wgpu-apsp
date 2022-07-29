@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 bytemuck = "1.11"
 futures-intrusive = "0.4"
-tokio = { version="1.20", features=["rt", "macros"] }
+tokio = { version="1.20", features=["full"] }
 wgpu = "0.13"
 
 [dev-dependencies]
