@@ -1,0 +1,17 @@
+[package]
+name = "wgpu-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bytemuck = "1.11"
+futures-intrusive = "0.4"
+tokio = { version="1.20", features=["rt", "macros"] }
+wgpu = "0.13"
+
+[dev-dependencies]
+criterion = { version="0.3", features=["async_futures"] }
+
+[[bench]]
+name = "my_benchmark"
+harness = false
