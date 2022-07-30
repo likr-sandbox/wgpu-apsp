@@ -15,7 +15,6 @@ var<uniform> params: Params;
 
 var<workgroup> a_local : array<f32, 256>;
 var<workgroup> b_local : array<f32, 256>;
-var<workgroup> c_local : array<f32, 256>;
 
 @compute
 @workgroup_size(16, 16)
@@ -31,29 +30,26 @@ fn tropical_matmul(
   var n : u32 = params.n;
   var stride : u32 = params.stride;
 
-  c_local[y_local * 16u + x_local] = 1000000.;
-  var k : u32 = u32(0);
+  var s : f32 = 1000000.;
+  var k : u32 = 0u;
 
   loop {
-    if (16u * k >= n) {
+    if (16u * k >= stride) {
       break;
     }
     workgroupBarrier();
-    a_local[y_local * 16u + x_local] = buffer_in[(16u * k + y_local) * stride + (16u * workgroup_id.x + x_local)];
-    b_local[y_local * 16u + x_local] = buffer_in[(16u * workgroup_id.y + y_local) * stride + (16u * k + x_local)];
+    a_local[y_local * 16u + x_local] = buffer_in[(16u * workgroup_id.y + y_local) * stride + (16u * k + x_local)];
+    b_local[y_local * 16u + x_local] = buffer_in[(16u * k + y_local) * stride + (16u * workgroup_id.x + x_local)];
     workgroupBarrier();
-    var z : u32 = u32(0);
+    var z : u32 = 0u;
     loop {
       if (z >= 16u) {
         break;
       }
-      c_local[y_local * 16u + x_local] = min(
-        c_local[y_local * 16u + x_local],
-        a_local[y_local * 16u + z] + b_local[z * 16u + x_local]
-      );
+      s = min(s, a_local[y_local * 16u + z] + b_local[z * 16u + x_local]);
       z = z + 1u;
     }
     k = k + 1u;
   }
-  buffer_out[y * stride + x] = c_local[y_local * 16u + x_local];
+  buffer_out[y * stride + x] = s;
 }

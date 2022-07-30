@@ -182,7 +182,7 @@ pub async fn download_distance_matrix(
 
 #[tokio::test]
 async fn test_warshall_floyd() {
-    let instance = wgpu::Instance::new(wgpu::Backends::VULKAN);
+    let instance = wgpu::Instance::new(wgpu::Backends::all());
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions::default())
         .await

@@ -1,5 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::time::Duration;
+use wgpu_test::tropical_matmul::{BlockedTropicalMatmulKernel, NaiveTropicalMatmulKernel};
 
 fn warshall_floyd_cpu(n: usize, edges: &[(usize, usize)], distance: &mut [f32]) {
     distance.fill(std::f32::INFINITY);
@@ -46,8 +47,12 @@ fn criterion_benchmark(c: &mut Criterion) {
             .await
             .unwrap();
         let wf = wgpu_test::warshall_floyd::WarshallFloyd::new(&device);
-        let tm = wgpu_test::tropical_matmul::TropicalMatmul::new(&device);
-        let tm_block = wgpu_test::tropical_matmul_block::TropicalMatmul::new(&device);
+        let tm_naive = wgpu_test::tropical_matmul::TropicalMatmul::new(
+            NaiveTropicalMatmulKernel::new(&device),
+        );
+        let tm_block = wgpu_test::tropical_matmul::TropicalMatmul::new(
+            BlockedTropicalMatmulKernel::new(&device),
+        );
         {
             let mut group = c.benchmark_group("APSP");
             for n in (128..=1024).step_by(128) {
@@ -93,24 +98,10 @@ fn criterion_benchmark(c: &mut Criterion) {
                     BenchmarkId::new("GPU tropical-matmul", n),
                     &graph,
                     |bench, graph| {
-                        let size = wgpu_test::tropical_matmul::TropicalMatmulKernel::buffer_size(n);
-                        let in_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                            label: None,
-                            size: size as u64,
-                            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-                            mapped_at_creation: false,
-                        });
-                        let out_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                            label: None,
-                            size: size as u64,
-                            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-                            mapped_at_creation: false,
-                        });
+                        let (in_buffer, out_buffer) = tm_naive.create_buffer(&device, n);
                         bench.iter(|| {
-                            wgpu_test::tropical_matmul::stage_adjacency_matrix(
-                                &device, &queue, &graph, n, &in_buffer,
-                            );
-                            tm.run(&device, &queue, &in_buffer, &out_buffer, n);
+                            tm_naive.stage_adjacency_matrix(&device, &queue, &graph, n, &in_buffer);
+                            tm_naive.run(&device, &queue, &in_buffer, &out_buffer, n);
                             device.poll(wgpu::Maintain::Wait);
                         });
                     },
@@ -120,24 +111,9 @@ fn criterion_benchmark(c: &mut Criterion) {
                     BenchmarkId::new("GPU tropical-matmul-block", n),
                     &graph,
                     |bench, graph| {
-                        let size =
-                            wgpu_test::tropical_matmul_block::TropicalMatmulKernel::buffer_size(n);
-                        let in_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                            label: None,
-                            size: size as u64,
-                            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-                            mapped_at_creation: false,
-                        });
-                        let out_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                            label: None,
-                            size: size as u64,
-                            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-                            mapped_at_creation: false,
-                        });
+                        let (in_buffer, out_buffer) = tm_block.create_buffer(&device, n);
                         bench.iter(|| {
-                            wgpu_test::tropical_matmul_block::stage_adjacency_matrix(
-                                &device, &queue, &graph, n, &in_buffer,
-                            );
+                            tm_block.stage_adjacency_matrix(&device, &queue, &graph, n, &in_buffer);
                             tm_block.run(&device, &queue, &in_buffer, &out_buffer, n);
                             device.poll(wgpu::Maintain::Wait);
                         });

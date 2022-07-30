@@ -20,19 +20,16 @@ fn tropical_matmul(
 ) {
   var x : u32 = global_invocation_id.x;
   var y : u32 = global_invocation_id.y;
-  var s : f32 = 100000000.;
-  var k : u32 = u32(0);
+  var s : f32 = 1000.;
+  var k : u32 = 0u;
   var n : u32 = params.n;
   var stride : u32 = params.stride;
-  if (x >= n || y >= n) {
-    return;
-  }
   loop {
     if (k >= n) {
       break;
     }
-    s = min(s, buffer_in[y * stride + k] + buffer_in[k * stride + x]);
+    s = min(s, buffer_in[y * n + k] + buffer_in[k * n + x]);
     k = k + 1u;
   }
-  buffer_out[y * stride + x] = s;
+  buffer_out[y * n + x] = s;
 }
